@@ -1,0 +1,116 @@
+<!-- templates/payment.html -->
+{% extends 'base.html' %}
+{% block content %}
+<br><br><br>
+<div class="min-h-screen bg-gradient-to-br from-orange-100 to-white py-12 px-4">
+    <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-xl p-8 border-orange-500 border-t-4">
+        <h1 class="text-3xl font-bold text-center mb-8 text-orange-600">Finaliser la commande</h1>
+        
+        <!-- Détails produit -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-black">Détails du produit</h2>
+            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <p class="text-black"><span class="font-medium">Produit:</span> {{ product.name }}</p>
+                <p class="text-black"><span class="font-medium">Prix:</span> {{ product.price }} FCFA</p>
+            </div>
+        </div>
+
+        <!-- Quantité -->
+        <div class="mb-8">
+            <label class="block text-sm font-medium mb-2 text-black">Quantité</label>
+            <input type="number" id="quantity" min="1" value="1" 
+                   class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none">
+        </div>
+
+        <!-- Total -->
+        <div class="mb-8 bg-orange-50 p-4 rounded-lg border border-orange-200">
+            <p class="text-lg font-semibold text-black">Total: <span id="total">{{ product.price }}</span> FCFA</p>
+            <p class="text-sm text-gray-700">≈ <span id="usd-total">0</span> USD</p>
+        </div>
+
+        <!-- Paiement normal -->
+        <form method="POST" action="{% url 'handle_payment' %}" class="mb-6">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <input type="hidden" name="quantity" id="form-quantity" value="1">
+            <input type="hidden" name="total_amount" id="form-total" value="{{ product.price }}">
+            <button type="submit" 
+                    class="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-800 transition duration-300 font-medium shadow-md">
+                Paiement Normal
+            </button>
+        </form>
+
+        <!-- PayPal -->
+        <div class="mb-2 text-center text-gray-700 font-medium">- OU -</div>
+        <div id="paypal-button-container" class="mt-4"></div>
+    </div>
+</div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=ASHgyTMb8BDdF0i4tLPkXlz6v2i067gUiveYOPSUgqIVtrPFqcQnVqN6ve6ZQUoMnLQarPmkhSNv3vqs&currency=USD"></script>
+
+<script>
+const price = {{ product.price }};
+const exchangeRate = 600;
+
+function updateTotal() {
+    const quantity = document.getElementById('quantity').value;
+    const totalFCFA = price * quantity;
+    const totalUSD = (totalFCFA / exchangeRate).toFixed(2);
+    
+    document.getElementById('total').textContent = totalFCFA;
+    document.getElementById('usd-total').textContent = totalUSD;
+    document.getElementById('form-quantity').value = quantity;
+    document.getElementById('form-total').value = totalFCFA;
+    
+    return { fcfa: totalFCFA, usd: totalUSD };
+}
+
+document.getElementById('quantity').addEventListener('input', updateTotal);
+
+paypal.Buttons({
+    style: {
+        color: 'black',
+        shape: 'rect',
+        label: 'pay',
+        height: 45
+    },
+    createOrder: function(data, actions) {
+        const totals = updateTotal();
+        return actions.order.create({
+            purchase_units: [{
+                amount: {
+                    value: totals.usd,
+                    currency_code: 'USD'
+                }
+            }]
+        });
+    },
+    onApprove: function(data, actions) {
+        return actions.order.capture().then(function(details) {
+            const formData = {
+                orderID: data.orderID,
+                productId: {{ product.id }},
+                quantity: document.getElementById('quantity').value,
+                amount: details.purchase_units[0].amount.value,
+                payerEmail: details.payer.email_address
+            };
+
+            return fetch("{% url 'handle_payment' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            });
+        });
+    }
+}).render('#paypal-button-container');
+</script>
+{% endblock %}

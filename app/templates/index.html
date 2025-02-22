@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+
+{% block title %}KmerFusion - Votre marketplace en ligne{% endblock %}
+
+{% block content %}
+<!-- Hero Section avec Overlay -->
+<section class="hero-section" style="margin-top: 76px; height: 100vh; background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/api/placeholder/1920/1080'); background-size: cover; background-position: center; position: relative;">
+    <div class="container h-100">
+        <div class="row h-100 align-items-center">
+            <div class="col-lg-8 text-white">
+                <h1 class="display-3 fw-bold mb-4">Bienvenue sur KmerFusion</h1>
+                <p class="lead mb-4">La marketplace qui vous connecte aux meilleurs produits</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'login' %}" class="btn btn-lg" style="background-color: var(--orange-primary); color: white;">
+                        Se connecter
+                    </a>
+                    <a href="{% url 'register' %}" class="btn btn-lg btn-outline-light">
+                        Créer un compte
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="position-absolute bottom-0 w-100 text-center pb-5">
+        <a href="#products" class="text-white">
+            <i class="fas fa-chevron-down fa-2x animate-bounce"></i>
+        </a>
+    </div>
+</section>
+
+<!-- Featured Products Section -->
+<section id="products" class="py-5">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h2 class="display-6 fw-bold position-relative d-inline-block" style="color: var(--black-primary);">
+                Produits en Vedette
+                <div class="position-absolute w-100" style="height: 4px; background-color: var(--orange-primary); bottom: -10px;"></div>
+            </h2>
+        </div>
+        <div class="row g-4">
+            {% for product in featured_products %}
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm product-card">
+                    <div class="position-relative">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <img src="/api/placeholder/300/200" class="card-img-top" alt="{{ product.name }}">
+                        {% endif %}
+                        <div class="product-overlay">
+                            <button class="btn btn-sm btn-light mb-2" onclick="showProductDetails('{{ product.id }}')">
+                                <i class="fas fa-eye"></i> Détails
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">{{ product.name }}</h5>
+                        <p class="card-text text-muted mb-2">{{ product.price|floatformat:0 }} FCFA</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm flex-grow-1" style="background-color: var(--orange-primary); color: white;"
+                                    onclick="orderNow('{{ product.id }}')">
+                                    <i class="fas fa-cart-plus"></i> Commander
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5" style="background-color: #f8f9fa;">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h2 class="display-6 fw-bold position-relative d-inline-block" style="color: var(--black-primary);">
+                Pourquoi nous choisir ?
+                <div class="position-absolute w-100" style="height: 4px; background-color: var(--orange-primary); bottom: -10px;"></div>
+            </h2>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="text-center feature-card p-4">
+                    <i class="fas fa-truck fa-3x mb-3" style="color: var(--orange-primary);"></i>
+                    <h5 class="fw-bold">Livraison Rapide</h5>
+                    <p class="text-muted">Livraison dans tout le Cameroun</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center feature-card p-4">
+                    <i class="fas fa-shield-alt fa-3x mb-3" style="color: var(--orange-primary);"></i>
+                    <h5 class="fw-bold">Paiement Sécurisé</h5>
+                    <p class="text-muted">Transactions 100% sécurisées</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center feature-card p-4">
+                    <i class="fas fa-medal fa-3x mb-3" style="color: var(--orange-primary);"></i>
+                    <h5 class="fw-bold">Qualité Garantie</h5>
+                    <p class="text-muted">Produits de qualité supérieure</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center feature-card p-4">
+                    <i class="fas fa-headset fa-3x mb-3" style="color: var(--orange-primary);"></i>
+                    <h5 class="fw-bold">Support 24/7</h5>
+                    <p class="text-muted">Service client disponible</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Latest Products Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h2 class="display-6 fw-bold position-relative d-inline-block" style="color: var(--black-primary);">
+                Derniers Arrivages
+                <div class="position-absolute w-100" style="height: 4px; background-color: var(--orange-primary); bottom: -10px;"></div>
+            </h2>
+        </div>
+        <div class="row g-4">
+            {% for product in latest_products %}
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm product-card">
+                    <div class="position-relative">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <img src="/api/placeholder/300/200" class="card-img-top" alt="{{ product.name }}">
+                        {% endif %}
+                        <div class="product-overlay">
+                            <button class="btn btn-sm btn-light mb-2" onclick="showProductDetails('{{ product.id }}')">
+                                <i class="fas fa-eye"></i> Détails
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">{{ product.name }}</h5>
+                        <p class="card-text text-muted mb-2">{{ product.price|floatformat:0 }} FCFA</p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm flex-grow-1" style="background-color: var(--black-primary); color: white;"
+                                    onclick="orderNow('{{ product.id }}')">
+                                <i class="fas fa-cart-plus"></i>Commander
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Modal pour les détails du produit -->
+<div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Détails du produit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="product-image-container" style="height: 300px; overflow: hidden; border-radius: 8px;">
+                            <img id="modalProductImage" src="" alt="Product Image" 
+                                 style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4 id="modalProductName" class="fw-bold mb-3"></h4>
+                        <div class="mb-3">
+                            <h6 class="fw-bold">Description:</h6>
+                            <p id="modalProductDescription" class="text-muted"></p>
+                        </div>
+                        <div class="mb-4">
+                            <h5 class="fw-bold text-primary">Prix: 
+                                <span id="modalProductPrice" class="text-orange"></span> FCFA
+                            </h5>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-lg" 
+                                    style="background-color: var(--black-primary); color: white;"
+                                    onclick="orderNow(currentProductId)">
+                                <i class="fas fa-shopping-bag me-2"></i>
+                                Commander maintenant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .product-card {
+        transition: transform 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .product-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .product-card:hover .product-overlay {
+        opacity: 1;
+    }
+    
+    .animate-bounce {
+        animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-30px);
+        }
+        60% {
+            transform: translateY(-15px);
+        }
+    }
+    
+    .btn:hover {
+        filter: brightness(90%);
+        transform: translateY(-1px);
+        transition: all 0.2s;
+    }
+
+    .modal-content {
+        border: none;
+        border-radius: 12px;
+    }
+    
+    .modal-header {
+        border-bottom: 2px solid #f0f0f0;
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .text-orange {
+        color: var(--orange-primary);
+    }
+    
+    .product-image-container {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .product-image-container:hover {
+        transform: scale(1.02);
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 10px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+</style>
+
+<script>
+let currentProductId = null;
+
+// Fonction pour afficher les détails du produit
+async function showProductDetails(productId) {
+    currentProductId = productId;
+    
+    try {
+        // Appel à l'API pour récupérer les détails du produit
+        const response = await fetch(`/api/products/${productId}/`);
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des données');
+        }
+        
+        const product = await response.json();
+        
+        // Mise à jour du contenu du modal
+        document.getElementById('modalProductImage').src = product.image || '/api/placeholder/400/300';
+        document.getElementById('modalProductImage').alt = product.name;
+        document.getElementById('modalProductName').textContent = product.name;
+        document.getElementById('modalProductDescription').textContent = product.description;
+        document.getElementById('modalProductPrice').textContent = product.price.toLocaleString();
+        
+        // Afficher le modal
+        const modal = new bootstrap.Modal(document.getElementById('productModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Impossible de charger les détails du produit. Veuillez réessayer.');
+    }
+}
+
+// Fonction pour vérifier si l'utilisateur est connecté
+function isUserAuthenticated() {
+    return {% if user.is_authenticated %}true{% else %}false{% endif %};
+}
+
+// Fonction pour ajouter au panier
+function addToCart(productId) {
+    if (!isUserAuthenticated()) {
+        // Sauvegarder l'action en cours
+        localStorage.setItem('pendingAction', JSON.stringify({
+            action: 'addToCart',
+            productId: productId
+        }));
+        
+        // Rediriger vers la page de connexion avec l'URL de retour
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `{% url 'login' %}?next=${returnUrl}`;
+        return;
+    }
+    
+    // Si l'utilisateur est connecté
+    try {
+        fetch('/api/cart/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                quantity: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Afficher une notification de succès
+                showNotification('Produit ajouté au panier', 'success');
+                
+                // Mettre à jour le compteur du panier si nécessaire
+                updateCartCounter(data.cart_count);
+                
+                // Fermer le modal si ouvert
+                const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } else {
+                throw new Error(data.message || 'Erreur lors de l\'ajout au panier');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showNotification('Erreur lors de l\'ajout au panier', 'error');
+        });
+    } catch (error) {
+        console.error('Erreur:', error);
+        showNotification('Erreur lors de l\'ajout au panier', 'error');
+    }
+}
+
+// Fonction pour commander maintenant
+function orderNow(productId) {
+    if (!isUserAuthenticated()) {
+        // Sauvegarder l'action en cours
+        localStorage.setItem('pendingAction', JSON.stringify({
+            action: 'orderNow',
+            productId: productId
+        }));
+        
+        // Rediriger vers la page de connexion avec l'URL de retour
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `{% url 'login' %}?next=${returnUrl}`;
+        return;
+    }
+    
+    // Si l'utilisateur est connecté, rediriger vers la page de commande
+    window.location.href = `{% url 'login' %}?product_id=${productId}`;
+}
+
+// Fonction pour récupérer le token CSRF
+function getCsrfToken() {
+    return document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+}
+
+// Fonction pour afficher les notifications
+function showNotification(message, type = 'success') {
+    // Créer l'élément de notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} notification`;
+    notification.role = 'alert';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        animation: slideIn 0.5s ease-out;
+    `;
+    notification.innerHTML = message;
+
+    // Ajouter au document
+    document.body.appendChild(notification);
+
+    // Supprimer après 3 secondes
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.5s ease-in';
+        setTimeout(() => notification.remove(), 500);
+    }, 3000);
+}
+
+// Fonction pour mettre à jour le compteur du panier
+function updateCartCounter(count) {
+    const cartCounter = document.getElementById('cartCounter');
+    if (cartCounter) {
+        cartCounter.textContent = count;
+        if (count > 0) {
+            cartCounter.style.display = 'inline-block';
+        } else {
+            cartCounter.style.display = 'none';
+        }
+    }
+}
+
+// Ajouter les styles d'animation pour les notifications
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Exécuter les actions en attente après la connexion
+document.addEventListener('DOMContentLoaded', function() {
+    const pendingAction = localStorage.getItem('pendingAction');
+    if (pendingAction && isUserAuthenticated()) {
+        try {
+            const action = JSON.parse(pendingAction);
+            if (action.action === 'addToCart') {
+                addToCart(action.productId);
+            } else if (action.action === 'orderNow') {
+                orderNow(action.productId);
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'exécution de l\'action en attente:', error);
+        }
+        localStorage.removeItem('pendingAction');
+    }
+});
+</script>
+{% endblock %}
