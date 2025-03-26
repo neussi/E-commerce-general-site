@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+
+{% block title %}Paiement | KmerFusion{% endblock %}
+
+{% block content %}
+<br><br><br><br>
+<div class="container mx-auto px-4 py-8 bg-gray-50">
+    <!-- En-tête du paiement -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-12">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4 md:mb-0">Finaliser votre commande</h2>
+        <a href="{% url 'cart' %}" 
+            class="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-gray-800 transition duration-300 flex items-center shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Retour au panier
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Formulaire de livraison -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden p-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6">Informations de livraison</h3>
+                
+                <form id="checkout-form" class="space-y-6">
+                    {% csrf_token %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label for="first_name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                            <input type="text" id="first_name" name="first_name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="last_name" class="block text-sm font-medium text-gray-700">Nom</label>
+                            <input type="text" id="last_name" name="last_name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="email" name="email" value="{{ request.user.email }}" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="phone" class="block text-sm font-medium text-gray-700">Téléphone</label>
+                        <input type="tel" id="phone" name="phone" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="address" class="block text-sm font-medium text-gray-700">Adresse</label>
+                        <input type="text" id="address" name="address" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-2">
+                            <label for="city" class="block text-sm font-medium text-gray-700">Ville</label>
+                            <input type="text" id="city" name="city" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="state" class="block text-sm font-medium text-gray-700">Région</label>
+                            <input type="text" id="state" name="state" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="postal_code" class="block text-sm font-medium text-gray-700">Code postal</label>
+                            <input type="text" id="postal_code" name="postal_code" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="notes" class="block text-sm font-medium text-gray-700">Instructions de livraison (optionnel)</label>
+                        <textarea id="notes" name="notes" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"></textarea>
+                    </div>
+                    
+                    <input type="hidden" name="order_items" id="order_items" value="">
+                    <input type="hidden" name="total_amount" id="total_amount" value="{{ total }}">
+                </form>
+            </div>
+        </div>
+        
+        <!-- Résumé de la commande -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Résumé de la commande</h3>
+                
+                <!-- Liste des articles -->
+                <div class="divide-y divide-gray-100 mb-6">
+                    {% for item in cart_items %}
+                        <div class="py-4 flex justify-between">
+                            <div class="flex items-center">
+                                <span class="text-gray-700 font-medium">{{ item.quantity }}x</span>
+                                <span class="ml-2 text-gray-600">{{ item.product.name }}</span>
+                            </div>
+                            <span class="text-orange-500 font-medium">{{ item.get_total_item_price }} FCFA</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Sous-total et total -->
+                <div class="space-y-4 mb-8">
+                    <div class="flex justify-between text-gray-600">
+                        <span>Sous-total</span>
+                        <span>{{ total }} FCFA</span>
+                    </div>
+                    <div class="flex justify-between text-gray-600">
+                        <span>Frais de livraison</span>
+                        <span>1500 FCFA</span>
+                    </div>
+                    <div class="border-t border-gray-100 pt-4 flex justify-between font-bold text-gray-800">
+                        <span>Total</span>
+                        <span class="text-orange-500" id="grand_total">{{ total|add:1500 }} FCFA</span>
+                    </div>
+                </div>
+                
+                <!-- Méthodes de paiement -->
+                <div class="mb-8">
+                    <h4 class="font-medium text-gray-700 mb-4">Mode de paiement</h4>
+                    
+                    <div class="space-y-3">
+                        <!-- Paiement simulé -->
+                        <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="payment_method" value="simulate" class="text-orange-500 focus:ring-orange-500" checked>
+                            <span class="ml-2">Simuler un paiement</span>
+                        </label>
+                        
+                        <!-- PayPal -->
+                        <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="payment_method" value="paypal" class="text-orange-500 focus:ring-orange-500">
+                            <span class="ml-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-700 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19.403 4.754a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049 1.05 1.05 0 00-1.052-1.049zm-14.806 0a1.05 1.05 0 00-1.052 1.049 1.05 1.05 0 001.052 1.049 1.05 1.05 0 001.053-1.049 1.05 1.05 0 00-1.053-1.049zm7.403 0a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049 1.05 1.05 0 00-1.052-1.049zM12 15.659a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049A1.05 1.05 0 0012 15.659zm7.403 0a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049 1.05 1.05 0 00-1.052-1.049zm-14.806 0a1.05 1.05 0 00-1.052 1.049 1.05 1.05 0 001.052 1.049 1.05 1.05 0 001.053-1.049A1.05 1.05 0 004.597 15.66zM12 10.206a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049A1.05 1.05 0 0012 10.206zm7.403 0a1.05 1.05 0 00-1.053 1.049 1.05 1.05 0 001.053 1.049 1.05 1.05 0 001.052-1.049 1.05 1.05 0 00-1.052-1.049zm-14.806 0a1.05 1.05 0 00-1.052 1.049 1.05 1.05 0 001.052 1.049 1.05 1.05 0 001.053-1.049 1.05 1.05 0 00-1.053-1.049z"></path>
+                                </svg>
+                                PayPal
+                            </span>
+                        </label>
+                        
+                        <!-- WhatsApp -->
+                        <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="payment_method" value="whatsapp" class="text-orange-500 focus:ring-orange-500">
+                            <span class="ml-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                </svg>
+                                Commander par WhatsApp
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Boutons de paiement -->
+                <div id="payment-buttons">
+                    <!-- Bouton de simulation -->
+                    <button id="simulate-payment" class="block w-full bg-orange-500 text-white text-center py-4 rounded-xl hover:bg-orange-600 transition-all font-medium">
+                        Simuler le paiement
+                    </button>
+                    
+                    <!-- PayPal (masqué par défaut) -->
+                    <div id="paypal-button-container" class="hidden w-full"></div>
+                    
+                    <!-- WhatsApp (masqué par défaut) -->
+                    <button id="whatsapp-order" class="hidden w-full bg-green-600 text-white text-center py-4 rounded-xl hover:bg-green-700 transition-all font-medium">
+                        <i class="fab fa-whatsapp mr-2"></i> Envoyer par WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script PayPal -->
+<script src="https://www.paypal.com/sdk/js?client-id=ASHgyTMb8BDdF0i4tLPkXlz6v2i067gUiveYOPSUgqIVtrPFqcQnVqN6ve6ZQUoMnLQarPmkhSNv3vqs&currency=USD"></script>
+
+<script>
+    // Données de la commande
+    let orderData = {
+        items: [
+            {% for item in cart_items %}
+            {
+                id: {{ item.product.id }},
+                name: "{{ item.product.name }}",
+                quantity: {{ item.quantity }},
+                price: {{ item.product.price }},
+                total: {{ item.get_total_item_price }}
+            },
+            {% endfor %}
+        ],
+        subtotal: {{ total }},
+        shipping: 1500,
+        total: {{ total|add:1500 }}
+    };
+    
+    // Initialiser les boutons de paiement
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mettre à jour le champ caché avec les données de la commande
+        document.getElementById('order_items').value = JSON.stringify(orderData.items);
+        document.getElementById('total_amount').value = orderData.total;
+        
+        // Gérer les changements de méthode de paiement
+        const paymentMethods = document.querySelectorAll('input[name="payment_method"]');
+        paymentMethods.forEach(method => {
+            method.addEventListener('change', function() {
+                // Cacher tous les boutons
+                document.getElementById('simulate-payment').style.display = 'none';
+                document.getElementById('paypal-button-container').style.display = 'none';
+                document.getElementById('whatsapp-order').style.display = 'none';
+                
+                // Afficher le bouton correspondant
+                if (this.value === 'simulate') {
+                    document.getElementById('simulate-payment').style.display = 'block';
+                } else if (this.value === 'paypal') {
+                    document.getElementById('paypal-button-container').style.display = 'block';
+                } else if (this.value === 'whatsapp') {
+                    document.getElementById('whatsapp-order').style.display = 'block';
+                }
+            });
+        });
+        
+        // Simulation de paiement
+        document.getElementById('simulate-payment').addEventListener('click', function() {
+            processFakePayment();
+        });
+        
+        // Commande par WhatsApp
+        document.getElementById('whatsapp-order').addEventListener('click', function() {
+            sendWhatsAppOrder();
+        });
+        
+        // Initialiser PayPal
+        initPayPal();
+    });
+    
+    // Validation des champs
+    function validateForm() {
+        const form = document.getElementById('checkout-form');
+        const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'address', 'city'];
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            const input = document.getElementById(field);
+            if (!input.value.trim()) {
+                input.classList.add('border-red-500', 'bg-red-50');
+                isValid = false;
+            } else {
+                input.classList.remove('border-red-500', 'bg-red-50');
+            }
+        });
+        
+        if (!isValid) {
+            alert('Veuillez remplir tous les champs obligatoires');
+        }
+        
+        return isValid;
+    }
+    
+    // Simuler un paiement
+    function processFakePayment() {
+        if (!validateForm()) return;
+        
+        // Récupérer les données du formulaire
+        const formData = new FormData(document.getElementById('checkout-form'));
+        formData.append('payment_method', 'simulated');
+        
+        // Envoyer les données au serveur
+        fetch('{% url "handle_payment" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Rediriger vers la page de succès avec le ID de la commande
+                window.location.href = '{% url "payment_success" %}?order_id=' + data.order_id;
+            } else {
+                alert('Une erreur est survenue: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Une erreur est survenue lors du traitement de votre commande.');
+        });
+    }
+    
+    // Initialiser PayPal
+    function initPayPal() {
+        const totalUSD = (orderData.total / 600).toFixed(2); // Convertir FCFA en USD (taux approximatif)
+        
+        paypal.Buttons({
+            style: {
+                color: 'black',
+                shape: 'rect',
+                label: 'pay',
+                height: 45
+            },
+            createOrder: function(data, actions) {
+                if (!validateForm()) return;
+                
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: totalUSD,
+                            currency_code: 'USD'
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                    // Récupérer les données du formulaire
+                    const formData = new FormData(document.getElementById('checkout-form'));
+                    formData.append('payment_method', 'paypal');
+                    formData.append('paypal_order_id', data.orderID);
+                    formData.append('paypal_payer_email', details.payer.email_address);
+                    
+                    // Envoyer les données au serveur
+                    fetch('{% url "handle_payment" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.href = '{% url "payment_success" %}?order_id=' + data.order_id;
+                        } else {
+                            alert('Une erreur est survenue: ' + data.error);
+                        }
+                    });
+                });
+            }
+        }).render('#paypal-button-container');
+    }
+    
+    // Envoyer la commande par WhatsApp
+    function sendWhatsAppOrder() {
+        if (!validateForm()) return;
+        
+        // Récupérer les informations de livraison
+        const firstName = document.getElementById('first_name').value;
+        const lastName = document.getElementById('last_name').value;
+        const phone = document.getElementById('phone').value;
+        const address = document.getElementById('address').value;
+        const city = document.getElementById('city').value;
+        
+        // Construire le message WhatsApp
+        let message = "🛒 *NOUVELLE COMMANDE* 🛒\n\n";
+        message += `*Client:* ${firstName} ${lastName}\n`;
+        message += `*Téléphone:* ${phone}\n`;
+        message += `*Adresse:* ${address}, ${city}\n\n`;
+        message += "*Articles commandés:*\n";
+        
+        // Ajouter les articles
+        orderData.items.forEach(item => {
+            message += `- ${item.quantity}x ${item.name} (${item.price} FCFA) = ${item.total} FCFA\n`;
+        });
+        
+        message += "\n*Sous-total:* " + orderData.subtotal + " FCFA\n";
+        message += "*Frais de livraison:* " + orderData.shipping + " FCFA\n";
+        message += "*TOTAL:* " + orderData.total + " FCFA\n\n";
+        message += "Merci pour votre commande! 🙏";
+        
+        // Créer l'URL WhatsApp
+        const whatsappNumber = "+237672456789"; // Remplacez par votre numéro WhatsApp
+        const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        
+        // Enregistrer la commande dans le système avant d'ouvrir WhatsApp
+        const formData = new FormData(document.getElementById('checkout-form'));
+        formData.append('payment_method', 'whatsapp');
+        
+        fetch('{% url "handle_payment" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Ouvrir WhatsApp même si l'enregistrement échoue
+            window.open(whatsappUrl, '_blank');
+            
+            if (data.success) {
+                // Rediriger après un court délai
+                setTimeout(() => {
+                    window.location.href = '{% url "payment_success" %}?order_id=' + data.order_id;
+                }, 3000);
+            }
+        })
+        .catch(error => {
+            // Ouvrir WhatsApp même si l'enregistrement échoue
+            window.open(whatsappUrl, '_blank');
+        });
+    }
+</script>
+{% endblock %}.436-9.884 9.888-9

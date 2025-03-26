@@ -225,74 +225,118 @@ def payment_view(request, product_id):
     })
 
 
+# Ajoutez ces fonctions à votre fichier views.py
 
-def handle_payment(request):
+@login_required(login_url='/login')
+def handle_cart_payment(request):
     if request.method == 'POST':
         try:
+            # Récupérer le panier de l'utilisateur
+            cart = Cart.objects.get(user=request.user, ordered=False)
+            cart_items = cart.items.all()
+            
+            if not cart_items.exists():
+                messages.warning(request, "Votre panier est vide.")
+                return redirect('cart')
+            
             # Pour PayPal (AJAX request)
-            if request.content_type == 'application/json':
-                data = json.loads(request.body)
-                product = Product.objects.get(id=data.get('productId'))
-                quantity = int(data.get('quantity'))
-                amount = float(data.get('amount')) * 600  # Conversion USD to FCFA
+            if request.content_type == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
                 
+                # Créer une commande principale
                 order = Order.objects.create(
                     buyer=request.user,
-                    product=product,
-                    quantity=quantity,
-                    total_amount=amount,
-                    payment_id=data.get('orderID'),
-                    buyer_email=data.get('payerEmail'),
+                    total_amount=float(data.get('total_amount', cart.get_total_price())),
+                    payment_id=data.get('paypal_order_id', f'SIM-{uuid.uuid4()}'),
+                    buyer_email=data.get('email', request.user.email),
                     status='COMPLETED'
                 )
                 
+                # Ajouter les détails des articles commandés
+                for item in cart_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        quantity=item.quantity,
+                        price=item.product.price,
+                        total=item.get_total_item_price()
+                    )
+                
+                # Créer un enregistrement de paiement
+                payment_method = data.get('payment_method', 'simulated')
                 Payment.objects.create(
                     order=order,
-                    amount=amount,
-                    payment_method='paypal',
-                    transaction_id=data.get('orderID'),
+                    amount=float(data.get('total_amount', cart.get_total_price())),
+                    payment_method=payment_method,
+                    transaction_id=data.get('paypal_order_id', order.payment_id),
                     status='completed'
                 )
                 
-                return JsonResponse({'status': 'success', 'redirect_url': f'/payment/success/{order.id}/'})
+                # Marquer le panier comme commandé
+                cart_items.update(ordered=True)
+                cart.ordered = True
+                cart.save()
+                
+                return JsonResponse({
+                    'success': True, 
+                    'order_id': order.id,
+                    'redirect_url': reverse('payment_success') + f'?order_id={order.id}'
+                })
             
             # Pour paiement normal (form submit)
             else:
-                product = Product.objects.get(id=request.POST.get('product_id'))
-                quantity = int(request.POST.get('quantity'))
-                amount = float(request.POST.get('total_amount'))
-                
+                # Créer une commande principale
                 order = Order.objects.create(
                     buyer=request.user,
-                    product=product,
-                    quantity=quantity,
-                    total_amount=amount,
+                    total_amount=float(request.POST.get('total_amount', cart.get_total_price())),
                     payment_id=f'NORMAL-{uuid.uuid4()}',
                     buyer_email=request.user.email,
                     status='COMPLETED'
                 )
                 
+                # Ajouter les détails des articles commandés
+                for item in cart_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        quantity=item.quantity,
+                        price=item.product.price,
+                        total=item.get_total_item_price()
+                    )
+                
+                # Créer un enregistrement de paiement
                 Payment.objects.create(
                     order=order,
-                    amount=amount,
-                    payment_method='normal',
+                    amount=float(request.POST.get('total_amount', cart.get_total_price())),
+                    payment_method=request.POST.get('payment_method', 'normal'),
                     transaction_id=order.payment_id,
                     status='completed'
                 )
                 
-                return redirect(f'/payment/success/{order.id}/')
+                # Marquer le panier comme commandé
+                cart_items.update(ordered=True)
+                cart.ordered = True
+                cart.save()
                 
+                return redirect(f'/payment/success/?order_id={order.id}')
+                
+        except Cart.DoesNotExist:
+            messages.error(request, "Vous n'avez pas de panier actif.")
+            return redirect('catalogue')
         except Exception as e:
             messages.error(request, f'Erreur lors du paiement: {str(e)}')
-            return redirect('/')
+            return redirect('cart')
     
-    return redirect('/')
+    return redirect('cart')
 
-def success_view(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    return render(request, 'payment/payment_success.html', {'order': order})
-
-
+def payment_success(request):
+    order_id = request.GET.get('order_id')
+    try:
+        order = Order.objects.get(id=order_id, buyer=request.user)
+        return render(request, 'payment_success.html', {'order': order})
+    except Order.DoesNotExist:
+        messages.error(request, "Commande introuvable.")
+        return redirect('catalogue')  
 
 def download_invoice(request, order_id):
     from reportlab.lib.pagesizes import A4
@@ -428,15 +472,29 @@ def download_invoice(request, order_id):
     data = [
         ["Description", "Quantité", "Prix unitaire", "Total"]
     ]
-    data.append([
-        order.product.name,
-        str(order.quantity),
-        f"{order.product.price:,} FCFA".replace(',', ' '),
-        f"{order.total_amount:,} FCFA".replace(',', ' ')
-    ])
+    
+    # Vérifier si c'est une commande standard ou multi-produits
+    if hasattr(order, 'items') and order.items.exists():
+        # Commande multi-produits du panier
+        for item in order.items.all():
+            data.append([
+                item.product.name,
+                str(item.quantity),
+                f"{item.price:,} FCFA".replace(',', ' '),
+                f"{item.total:,} FCFA".replace(',', ' ')
+            ])
+    elif order.product:
+        # Commande d'un seul produit
+        data.append([
+            order.product.name,
+            str(order.quantity),
+            f"{order.product.price:,} FCFA".replace(',', ' '),
+            f"{order.total_amount:,} FCFA".replace(',', ' ')
+        ])
     
     # Ajouter des lignes vides pour un meilleur aspect
-    for _ in range(3):  
+    empty_rows_needed = max(0, 4 - len(data))
+    for _ in range(empty_rows_needed):
         data.append(["", "", "", ""])
     
     table = Table(data, colWidths=[9*cm, 2*cm, 3.5*cm, 3.5*cm])
@@ -460,7 +518,7 @@ def download_invoice(request, order_id):
     table.wrapOn(p, width, height)
     table.drawOn(p, 1.5*cm, height-15*cm)
     
-    # Résumé des coûts - Version corrigée
+    # Résumé des coûts
     p.setFont("Helvetica-Bold", 10)
     p.drawString(11.5*cm, height-16*cm, "Sous-total:")
     p.drawString(11.5*cm, height-16.7*cm, "TVA (0%):")
@@ -477,6 +535,7 @@ def download_invoice(request, order_id):
     p.setFont("Helvetica-Bold", 12)
     # Position du texte ajustée pour être au milieu du rectangle
     p.drawRightString(width-1.5*cm, height-17.9*cm, f"{order.total_amount:,} FCFA".replace(',', ' '))  
+    
     # Informations de paiement
     p.setFillColor(black_color)
     p.setFont("Helvetica-Bold", 12)
@@ -486,8 +545,9 @@ def download_invoice(request, order_id):
     
     p.setFont("Helvetica", 10)
     method = "Paiement Normal"
-    if hasattr(order, 'payment') and order.payment:
-        method = order.payment.get_payment_method_display()
+    if hasattr(order, 'payment_set') and order.payment_set.exists():
+        payment = order.payment_set.first()
+        method = payment.get_payment_method_display() if hasattr(payment, 'get_payment_method_display') else payment.payment_method
     p.drawString(1.5*cm, height-19.5*cm, f"Méthode: {method}")
     p.drawString(1.5*cm, height-20*cm, f"Date: {order.created_at.strftime('%d/%m/%Y %H:%M')}")
     p.drawString(1.5*cm, height-20.5*cm, f"Statut: Payé")
@@ -524,10 +584,6 @@ def download_invoice(request, order_id):
     response['Content-Disposition'] = f'attachment; filename="facture_{order.id}.pdf"'
     
     return response
-
-
-def payment_success(request):
-    return render(request, 'payment_success.html')
 
 
 
@@ -573,3 +629,98 @@ def contact(request):
         form = ContactForm()
     
     return render(request, 'contact.html', {'form': form})
+
+
+
+
+@login_required(login_url='/login')
+def add_to_cart(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    quantity = int(request.POST.get('quantity', 1))
+    
+    # Vérifier si l'utilisateur a déjà un panier
+    cart, created = Cart.objects.get_or_create(
+        user=request.user,
+        ordered=False
+    )
+    
+    # Vérifier si ce produit est déjà dans le panier
+    cart_item, created = CartItem.objects.get_or_create(
+        product=product,
+        user=request.user,
+        ordered=False
+    )
+    
+    if created:
+        cart_item.quantity = quantity
+        cart_item.save()
+        cart.items.add(cart_item)
+        cart.save()
+    else:
+        # Si le produit est déjà dans le panier, augmenter la quantité
+        cart_item.quantity += quantity
+        cart_item.save()
+    
+    # Rediriger vers la page précédente ou vers le panier
+    next_url = request.POST.get('next', 'cart')
+    messages.success(request, f"{product.name} a été ajouté à votre panier.")
+    return redirect(next_url)
+
+@login_required(login_url='/login')
+def remove_from_cart(request, item_id):
+    cart_item = get_object_or_404(CartItem, id=item_id, user=request.user, ordered=False)
+    cart_item.delete()
+    messages.info(request, "Produit retiré du panier.")
+    return redirect('cart')
+
+@login_required(login_url='/login')
+def update_cart_item(request, item_id):
+    cart_item = get_object_or_404(CartItem, id=item_id, user=request.user, ordered=False)
+    quantity = int(request.POST.get('quantity', 1))
+    
+    if quantity > 0:
+        cart_item.quantity = quantity
+        cart_item.save()
+    else:
+        cart_item.delete()
+        
+    return redirect('cart')
+
+@login_required(login_url='/login')
+def cart_view(request):
+    # Récupérer le panier de l'utilisateur
+    try:
+        cart = Cart.objects.get(user=request.user, ordered=False)
+        cart_items = cart.items.all()
+        total = sum(item.product.price * item.quantity for item in cart_items)
+    except Cart.DoesNotExist:
+        cart_items = []
+        total = 0
+    
+    context = {
+        'cart_items': cart_items,
+        'total': total
+    }
+    
+    return render(request, 'cart.html', context)
+
+def checkout(request):
+    try:
+        cart = Cart.objects.get(user=request.user, ordered=False)
+        cart_items = cart.items.all()
+        
+        if not cart_items.exists():
+            messages.warning(request, "Votre panier est vide.")
+            return redirect('cart')
+            
+        total = sum(item.product.price * item.quantity for item in cart_items)
+    except Cart.DoesNotExist:
+        messages.warning(request, "Vous n'avez pas de panier actif.")
+        return redirect('catalogue')
+    
+    context = {
+        'cart_items': cart_items,
+        'total': total
+    }
+    
+    return render(request, 'checkout.html', context)

@@ -128,11 +128,20 @@
                         class="flex-1 bg-gray-900 text-white text-center py-3 rounded-xl hover:bg-gray-800 transition font-medium">
                         Détails
                     </a>
-                    <a href="{% url 'payment' product.id %}"  
-                        class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-black-600 transition-colors">
-                         Commander
-                     </a>
-                    
+                    {% if user.is_authenticated %}
+                        <form action="{% url 'add_to_cart' product.id %}" method="POST" class="flex-1">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'catalogue' %}">
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="w-full bg-orange-500 text-white text-center py-3 rounded-xl hover:bg-orange-600 transition font-medium">
+                                <i class="fas fa-cart-plus mr-1"></i> Panier
+                            </button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="flex-1 bg-orange-500 text-white text-center py-3 rounded-xl hover:bg-orange-600 transition font-medium">
+                            <i class="fas fa-cart-plus mr-1"></i> Panier
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -171,11 +180,6 @@
             });
         });
     });
-
-    
 </script>
 
 {% endblock content %}
-
-
-
